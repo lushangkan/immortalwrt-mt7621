@@ -63,6 +63,7 @@ jobs:
       - name: Write feeds
         run: |
           echo "src-git shidahuilang https://github.com/shidahuilang/openwrt-package;Immortalwrt" >> ./feeds.conf.default
+          echo "src-git mtk https://github.com/Nossiac/mtk-openwrt-feeds;lede-17.01" >> ./feeds.conf.default
       
       - name: Downlad TurboAcc
         run: |
