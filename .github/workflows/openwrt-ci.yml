@@ -1,0 +1,359 @@
+#
+# This is free software, lisence use MIT.
+# 
+# Copyright (C) 2019 P3TERX <https://p3terx.com>
+# Copyright (C) 2020 KFERMercer <KFER.Mercer@gmail.com>
+# 
+# <https://github.com/KFERMercer/OpenWrt-CI>
+#
+
+name: OpenWrt-CI
+
+on:
+  push:
+    branches: 
+      - openwrt-23.05
+  release:
+    types: [published]
+
+jobs:
+  build_openwrt:
+    name: Build OpenWrt firmware
+    runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: openwrt-23.05
+          fetch-depth: 0
+
+      - name: Create cache
+        uses: klever1988/cachewrtbuild@main
+        with:
+          #是否一并缓存.ccache目录，如果你启用了ccache。这是唯一的常用参数，其他三个用于除错，一般不需要调整
+          ccache: false
+          #是否缓存工具链目录
+          toolchain: true
+          #是否跳过工具链编译
+          skip: true
+          #清空缓存
+          clean: false
+
+      - name: Space cleanup
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt-get update
+          sudo -E apt-get -y install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget
+          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get clean
+
+          df -h
+
+      - name: Install mtk hwnat
+        run: |
+          git clone -b master https://github.com/padavanonly/immortalwrt.git ./hwnat
+          cp -rf ./hwnat/target/linux/rampis ./target/linux/rampis/
+          # Set linux kernel 5.15
+          sed -i 's/5.10/5.15/g' ./target/linux/rampis/Makefile
+          rm -rf ./hwnat
+      
+      - name: Write feeds
+        run: |
+          echo "src-git shidahuilang https://github.com/shidahuilang/openwrt-package;Immortalwrt" >> ./feeds.conf.default
+      
+      - name: Downlad TurboAcc
+        run: |
+          mkdir -p turboacc_tmp ./package/turboacc
+          cd turboacc_tmp 
+          git clone https://github.com/chenmozhijin/turboacc -b package
+          cd ../package/turboacc
+          git clone https://github.com/fullcone-nat-nftables/nft-fullcone
+          git clone https://github.com/chenmozhijin/turboacc
+          mv ./turboacc/luci-app-turboacc ./luci-app-turboacc
+          rm -rf ./turboacc
+          cd ../..
+          cp -f turboacc_tmp/turboacc/hack-5.15/952-add-net-conntrack-events-support-multiple-registrant.patch ./target/linux/generic/hack-5.15/613-netfilter_optional_tcp_window_check.patch
+          cp -f turboacc_tmp/turboacc/pending-5.15/613-netfilter_optional_tcp_window_check.patch ./target/linux/generic/pending-5.15/613-netfilter_optional_tcp_window_check.patch
+          rm -rf ./package/libs/libnftnl ./package/network/config/firewall4 ./package/network/utils/nftables
+          mkdir -p ./package/network/config/firewall4 ./package/libs/libnftnl ./package/network/utils/nftables
+          cp -r ./turboacc_tmp/turboacc/shortcut-fe ./package/turboacc
+          cp -RT ./turboacc_tmp/turboacc/firewall4-04a06bd70b9808b14444cae81a2faba4708ee231/firewall4 ./package/network/config/firewall4
+          cp -RT ./turboacc_tmp/turboacc/libnftnl-1.2.5/libnftnl ./package/libs/libnftnl
+          cp -RT ./turboacc_tmp/turboacc/nftables-1.0.7/nftables ./package/network/utils/nftables
+          rm -rf turboacc_tmp
+          echo "#  CONFIG_NF_CONNTRACK_CHAIN_EVENTS is not set" >> target/linux/generic/config-5.15
+          echo "#  CONFIG_SHORTCUT_FE is not set" >> target/linux/generic/config-5.15
+
+      - name: Download design theme
+        run: |
+          git clone https://github.com/gngpp/luci-theme-design.git  package/luci-theme-design
+
+      - name: Update feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Remove shidahuilang's turboacc
+        run: |
+          rm -rf ./package/feeds/shidahuilang/turboacc
+
+      - name: Generate configuration file
+        run: |
+          rm -f ./.config*
+          touch ./.config
+
+          cat >> .config <<EOF
+          CONFIG_TARGET_ramips=y
+          CONFIG_TARGET_ramips_mt7621=y
+          CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_redmi-router-ac2100=y
+          CONFIG_LIBCURL_COOKIES=y
+          CONFIG_LIBCURL_CRYPTO_AUTH=y
+          CONFIG_LIBCURL_FILE=y
+          CONFIG_LIBCURL_FTP=y
+          CONFIG_LIBCURL_HTTP=y
+          CONFIG_LIBCURL_NGHTTP2=y
+          CONFIG_LIBCURL_OPENSSL=y
+          CONFIG_LIBCURL_PROXY=y
+          CONFIG_LIBCURL_TFTP=y
+          CONFIG_LIBCURL_THREADED_RESOLVER=y
+          CONFIG_LIBCURL_TLS_SRP=y
+          CONFIG_LIBCURL_UNIX_SOCKETS=y
+          CONFIG_LUCI_CSSTIDY=y
+          CONFIG_LUCI_LANG_zh_Hans=y
+          CONFIG_PACKAGE_TAR_BZIP2=y
+          CONFIG_PACKAGE_TAR_GZIP=y
+          CONFIG_PACKAGE_TAR_XZ=y
+          CONFIG_PACKAGE_TAR_ZSTD=y
+          CONFIG_PACKAGE_acme=y
+          CONFIG_PACKAGE_acme-acmesh=y
+          CONFIG_PACKAGE_acme-common=y
+          CONFIG_PACKAGE_bash=y
+          CONFIG_PACKAGE_bzip2=y
+          CONFIG_PACKAGE_cgi-io=y
+          CONFIG_PACKAGE_coreutils=y
+          CONFIG_PACKAGE_coreutils-base64=y
+          CONFIG_PACKAGE_coreutils-nohup=y
+          CONFIG_PACKAGE_coreutils-stat=y
+          CONFIG_PACKAGE_coreutils-stty=y
+          CONFIG_PACKAGE_curl=y
+          CONFIG_PACKAGE_ddns-scripts=y
+          CONFIG_PACKAGE_ddns-scripts-services=y
+          CONFIG_PACKAGE_etherwake=y
+          CONFIG_PACKAGE_frpc=y
+          CONFIG_PACKAGE_frps=y
+          CONFIG_PACKAGE_htop=y
+          CONFIG_PACKAGE_ip-tiny=y
+          CONFIG_PACKAGE_ip6tables-nft=y
+          CONFIG_PACKAGE_iperf3=y
+          CONFIG_PACKAGE_ipset=y
+          CONFIG_PACKAGE_iptables-mod-nat-extra=y
+          CONFIG_PACKAGE_iptables-mod-tproxy=y
+          CONFIG_PACKAGE_iptables-nft=y
+          CONFIG_PACKAGE_kmod-ifb=y
+          CONFIG_PACKAGE_kmod-ip6tables=y
+          CONFIG_PACKAGE_kmod-ipt-ipset=y
+          CONFIG_PACKAGE_kmod-ipt-nat=y
+          CONFIG_PACKAGE_kmod-ipt-nat-extra=y
+          CONFIG_PACKAGE_kmod-ipt-offload=y
+          CONFIG_PACKAGE_kmod-ipt-tproxy=y
+          CONFIG_PACKAGE_kmod-nf-ipt6=y
+          CONFIG_PACKAGE_kmod-nf-tproxy=y
+          CONFIG_PACKAGE_kmod-nft-compat=y
+          CONFIG_PACKAGE_kmod-nft-fullcone=y
+          CONFIG_PACKAGE_kmod-sched-cake=y
+          CONFIG_PACKAGE_kmod-sched-core=y
+          CONFIG_PACKAGE_kmod-tcp-bbr=y
+          CONFIG_PACKAGE_kmod-tun=y
+          CONFIG_PACKAGE_libblkid=y
+          CONFIG_PACKAGE_libbz2=y
+          CONFIG_PACKAGE_libcap-ng=y
+          CONFIG_PACKAGE_libcurl=y
+          CONFIG_PACKAGE_libiperf3=y
+          CONFIG_PACKAGE_libipset=y
+          CONFIG_PACKAGE_libiptext=y
+          CONFIG_PACKAGE_libiptext-nft=y
+          CONFIG_PACKAGE_libiptext6=y
+          CONFIG_PACKAGE_liblua=y
+          CONFIG_PACKAGE_liblucihttp=y
+          CONFIG_PACKAGE_liblucihttp-lua=y
+          CONFIG_PACKAGE_liblucihttp-ucode=y
+          CONFIG_PACKAGE_liblzma=y
+          CONFIG_PACKAGE_libminiupnpc=y
+          CONFIG_PACKAGE_libmount=y
+          CONFIG_PACKAGE_libnatpmp=y
+          CONFIG_PACKAGE_libncurses=y
+          CONFIG_PACKAGE_libnghttp2=y
+          CONFIG_PACKAGE_libpcre=y
+          CONFIG_PACKAGE_libreadline=y
+          CONFIG_PACKAGE_librt=y
+          CONFIG_PACKAGE_libsmartcols=y
+          CONFIG_PACKAGE_libstdcpp=y
+          CONFIG_PACKAGE_libubus-lua=y
+          CONFIG_PACKAGE_libuci-lua=y
+          CONFIG_PACKAGE_libuuid=y
+          CONFIG_PACKAGE_libzstd=y
+          CONFIG_PACKAGE_lua=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_luci-app-autotimeset=y
+          CONFIG_PACKAGE_luci-app-clash=y
+          CONFIG_PACKAGE_luci-app-ddns=y
+          CONFIG_PACKAGE_luci-app-firewall=y
+          CONFIG_PACKAGE_luci-app-frpc=y
+          CONFIG_PACKAGE_luci-app-frps=y
+          CONFIG_PACKAGE_luci-app-koolproxyR=y
+          CONFIG_PACKAGE_luci-app-mwan3=y
+          CONFIG_PACKAGE_luci-app-naiveproxy=y
+          CONFIG_PACKAGE_luci-app-opkg=y
+          CONFIG_PACKAGE_luci-app-pppoe-relay=y
+          CONFIG_PACKAGE_luci-app-ramfree=y
+          CONFIG_PACKAGE_luci-app-smartdns=y
+          CONFIG_PACKAGE_luci-app-socat=y
+          CONFIG_PACKAGE_luci-app-sqm=y
+          CONFIG_PACKAGE_luci-app-store=y
+          CONFIG_PACKAGE_luci-app-syncdial=y
+          CONFIG_PACKAGE_luci-app-turboacc=y
+          CONFIG_PACKAGE_luci-app-upnp=y
+          CONFIG_PACKAGE_luci-app-vlmcsd=y
+          CONFIG_PACKAGE_luci-app-vsftpd=y
+          CONFIG_PACKAGE_luci-app-wolplus=y
+          CONFIG_PACKAGE_luci-app-zerotier=y
+          CONFIG_PACKAGE_luci-base=y
+          CONFIG_PACKAGE_luci-i18n-autotimeset-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-ddns-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-frpc-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-frps-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-mwan3-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-naiveproxy-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-opkg-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-pppoe-relay-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-ramfree-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-smartdns-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-socat-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-sqm-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-turboacc-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-upnp-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-vsftpd-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y
+          CONFIG_PACKAGE_luci-lib-base=y
+          CONFIG_PACKAGE_luci-lib-ip=y
+          CONFIG_PACKAGE_luci-lib-json=y
+          CONFIG_PACKAGE_luci-lib-jsonc=y
+          CONFIG_PACKAGE_luci-lib-nixio=y
+          CONFIG_PACKAGE_luci-lib-taskd=y
+          CONFIG_PACKAGE_luci-lib-xterm=y
+          CONFIG_PACKAGE_luci-light=y
+          CONFIG_PACKAGE_luci-lua-runtime=y
+          CONFIG_PACKAGE_luci-mod-admin-full=y
+          CONFIG_PACKAGE_luci-mod-network=y
+          CONFIG_PACKAGE_luci-mod-rpc=y
+          CONFIG_PACKAGE_luci-mod-status=y
+          CONFIG_PACKAGE_luci-mod-system=y
+          CONFIG_PACKAGE_luci-proto-ipv6=y
+          CONFIG_PACKAGE_luci-proto-ppp=y
+          CONFIG_PACKAGE_luci-ssl-openssl=y
+          CONFIG_PACKAGE_luci-theme-bootstrap=y
+          CONFIG_PACKAGE_luci-theme-design=y
+          CONFIG_PACKAGE_luci-theme-neobird=y
+          CONFIG_PACKAGE_miniupnpd-nftables=y
+          CONFIG_PACKAGE_mount-utils=y
+          CONFIG_PACKAGE_mt7603=y
+          CONFIG_PACKAGE_mt7615=y
+          CONFIG_PACKAGE_mwan3=y
+          CONFIG_PACKAGE_naiveproxy=y
+          CONFIG_PACKAGE_openssl-util=y
+          CONFIG_PACKAGE_pdnsd-alt=y
+          CONFIG_PACKAGE_rp-pppoe-common=y
+          CONFIG_PACKAGE_rp-pppoe-relay=y
+          CONFIG_PACKAGE_rpcd=y
+          CONFIG_PACKAGE_rpcd-mod-file=y
+          CONFIG_PACKAGE_rpcd-mod-iwinfo=y
+          CONFIG_PACKAGE_rpcd-mod-luci=y
+          CONFIG_PACKAGE_rpcd-mod-rrdns=y
+          CONFIG_PACKAGE_rpcd-mod-ucode=y
+          CONFIG_PACKAGE_script-utils=y
+          CONFIG_PACKAGE_smartdns=y
+          CONFIG_PACKAGE_socat=y
+          CONFIG_PACKAGE_sqm-scripts=y
+          CONFIG_PACKAGE_tar=y
+          CONFIG_PACKAGE_taskd=y
+          CONFIG_PACKAGE_tc-tiny=y
+          CONFIG_PACKAGE_terminfo=y
+          CONFIG_PACKAGE_uci2dat=y
+          CONFIG_PACKAGE_ucode-mod-html=y
+          CONFIG_PACKAGE_ucode-mod-lua=y
+          CONFIG_PACKAGE_ucode-mod-math=y
+          CONFIG_PACKAGE_uhttpd=y
+          CONFIG_PACKAGE_uhttpd-mod-ubus=y
+          CONFIG_PACKAGE_vlmcsd=y
+          CONFIG_PACKAGE_vsftpd=y
+          CONFIG_PACKAGE_wget-ssl=y
+          CONFIG_PACKAGE_xtables-nft=y
+          CONFIG_PACKAGE_xz=y
+          CONFIG_PACKAGE_xz-utils=y
+          CONFIG_PACKAGE_zerotier=y
+          CONFIG_PACKAGE_zlib=y
+          CONFIG_ZSTD_OPTIMIZE_O3=y
+          EOF
+
+          sed -i 's/^[ \t]*//g' ./.config
+          make defconfig
+
+      - name: Make download
+        run: |
+          make download -j8 || make download -j1 V=s
+          rm -rf $(find ./dl/ -size -1024c)
+          df -h
+
+      - name: Compile firmware
+        run: |
+          make -j$(($(nproc)+1)) || make -j1 V=sc
+          echo "======================="
+          echo "Space usage:"
+          echo "======================="
+          df -h
+          echo "======================="
+          du -h ./ --max-depth=1
+          du -h /mnt/openwrt/ --max-depth=1 || true
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p ./artifact/firmware
+          mkdir -p ./artifact/package
+          mkdir -p ./artifact/buildinfo
+          rm -rf $(find ./bin/targets/ -type d -name "packages")
+          cp -rf $(find ./bin/targets/ -type f) ./artifact/firmware/
+          cp -rf $(find ./bin/packages/ -type f -name "*.ipk") ./artifact/package/
+          cp -rf $(find ./bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
+
+      - name: Deliver buildinfo
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_buildinfo
+          path: ./artifact/buildinfo/
+
+      - name: Deliver package
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_package
+          path: ./artifact/package/
+
+      - name: Deliver firmware
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_firmware
+          path: ./bin/targets/
+
+      - name: Upload release asset
+        if: github.event == 'release'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.YOURTOKEN }}
+          file: ./artifact/firmware/*
+          tag: ${{ github.ref }}
+          file_glob: true
