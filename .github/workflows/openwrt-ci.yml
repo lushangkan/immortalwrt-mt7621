@@ -55,7 +55,7 @@ jobs:
       - name: Install mtk hwnat
         run: |
           git clone -b master https://github.com/padavanonly/immortalwrt.git ./hwnat
-          cp -rf ./hwnat/target/linux/rampis ./target/linux/rampis/
+          cp -rf ./hwnat/target/linux/ramips ./target/linux/ramips/
           # Set linux kernel 5.15
           sed -i 's/5.10/5.15/g' ./target/linux/rampis/Makefile
           rm -rf ./hwnat
