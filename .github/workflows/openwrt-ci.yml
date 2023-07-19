@@ -57,7 +57,7 @@ jobs:
           git clone -b master https://github.com/padavanonly/immortalwrt.git ./hwnat
           cp -rf ./hwnat/target/linux/ramips ./target/linux/ramips/
           # Set linux kernel 5.15
-          sed -i 's/5.10/5.15/g' ./target/linux/rampis/Makefile
+          sed -i 's/5.10/5.15/g' ./target/linux/ramips/Makefile
           rm -rf ./hwnat
       
       - name: Write feeds
