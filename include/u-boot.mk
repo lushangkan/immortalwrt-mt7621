@@ -18,7 +18,7 @@ PKG_FLAGS:=nonshared
 PKG_LICENSE:=GPL-2.0 GPL-2.0+
 PKG_LICENSE_FILES:=Licenses/README
 
-PKG_BUILD_PARALLEL:=1
+PKG_BUILD_PARALLEL ?= 1
 
 ifdef UBOOT_USE_BINMAN
   $(eval $(call TestHostCommand,python3-pyelftools, \
@@ -27,13 +27,22 @@ ifdef UBOOT_USE_BINMAN
 endif
 
 ifdef UBOOT_USE_INTREE_DTC
-  $(eval $(call SetupHostCommand,swig,Please install 'swig', \
-    swig -version))
+  $(eval $(call TestHostCommand,python3-dev, \
+    Please install the python3-dev package, \
+    python3.11-config --includes 2>&1 | grep 'python3', \
+    python3.10-config --includes 2>&1 | grep 'python3', \
+    python3.9-config --includes 2>&1 | grep 'python3', \
+    python3.8-config --includes 2>&1 | grep 'python3', \
+    python3.7-config --includes 2>&1 | grep 'python3', \
+    python3-config --includes 2>&1 | grep -E 'python3\.([7-9]|[0-9][0-9])\.?'))
 
-  $(eval $(call TestHostCommand,libpython3-dev, \
-    Please install the libpython3-dev package, \
-    $(STAGING_DIR_HOST)/bin/python3 -c 'import os; import sysconfig; \
-      os.path.exists(sysconfig.get_paths()["include"] + "/Python.h") or exit(1)'))
+  $(eval $(call TestHostCommand,python3-setuptools, \
+    Please install the Python3 setuptools module, \
+    $(STAGING_DIR_HOST)/bin/python3 -c 'import setuptools'))
+
+  $(eval $(call TestHostCommand,swig, \
+    Please install the swig package, \
+    swig -version))
 endif
 
 export GCC_HONOUR_COPTS=s

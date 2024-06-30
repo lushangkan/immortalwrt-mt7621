@@ -3,6 +3,11 @@ DEVICE_VARS += NETGEAR_BOARD_ID NETGEAR_HW_ID
 DEVICE_VARS += RAS_BOARD RAS_ROOTFS_SIZE RAS_VERSION
 DEVICE_VARS += WRGG_DEVNAME WRGG_SIGNATURE
 
+define Build/netgear-fit-padding
+	./netgear-fit-padding.py $@ $@.new
+	mv $@.new $@
+endef
+
 define Device/FitImage
 	KERNEL_SUFFIX := -uImage.itb
 	KERNEL = kernel-bin | gzip | fit gzip $$(KDIR)/image-$$(DEVICE_DTS).dtb
@@ -33,8 +38,8 @@ define Device/DniImage
 	NETGEAR_BOARD_ID :=
 	NETGEAR_HW_ID :=
 	IMAGES += factory.img
-	IMAGE/factory.img := append-kernel | pad-offset 64k 64 | append-uImage-fakehdr filesystem | append-rootfs | pad-rootfs | netgear-dni
-	IMAGE/sysupgrade.bin := append-kernel | pad-offset 64k 64 | append-uImage-fakehdr filesystem | \
+	IMAGE/factory.img := append-kernel | netgear-fit-padding | append-uImage-fakehdr filesystem | append-rootfs | pad-rootfs | netgear-dni
+	IMAGE/sysupgrade.bin := append-kernel | netgear-fit-padding | append-uImage-fakehdr filesystem | \
 		append-rootfs | pad-rootfs | check-size | append-metadata
 endef
 
@@ -354,7 +359,7 @@ endef
 #TARGET_DEVICES += compex_wpj419
 
 define Device/compex_wpj428
-	$(call Device/FitImage)
+	$(call Device/FitzImage)
 	DEVICE_VENDOR := Compex
 	DEVICE_MODEL := WPJ428
 	SOC := qcom-ipq4028
@@ -455,8 +460,7 @@ define Device/engenius_eap1300
 	IMAGE_SIZE := 25344k
 	IMAGE/sysupgrade.bin := append-kernel | append-rootfs | pad-rootfs | append-metadata
 endef
-# Missing DSA Setup
-#TARGET_DEVICES += engenius_eap1300
+TARGET_DEVICES += engenius_eap1300
 
 define Device/engenius_eap2200
 	$(call Device/FitImage)
@@ -756,28 +760,26 @@ define Device/luma_wrtq-329acn
 endef
 TARGET_DEVICES += luma_wrtq-329acn
 
-define Device/meraki_mr33
+define Device/meraki_common
 	$(call Device/FitImage)
 	DEVICE_VENDOR := Cisco Meraki
-	DEVICE_MODEL := MR33
 	SOC := qcom-ipq4029
 	BLOCKSIZE := 128k
 	PAGESIZE := 2048
-	DEVICE_PACKAGES := -swconfig ath10k-firmware-qca9887-ct
-	DEFAULT := n
+	DEVICE_DTS_LOADADDR := 0x89000000
+	DEVICE_PACKAGES := ath10k-firmware-qca9887-ct
+endef
+
+define Device/meraki_mr33
+	$(call Device/meraki_common)
+	DEVICE_MODEL := MR33
 endef
 TARGET_DEVICES += meraki_mr33
 
 define Device/meraki_mr74
-	$(call Device/FitImage)
-	DEVICE_VENDOR := Cisco Meraki
+	$(call Device/meraki_common)
 	DEVICE_MODEL := MR74
-	SOC := qcom-ipq4029
-	BLOCKSIZE := 128k
-	PAGESIZE := 2048
-	DEVICE_PACKAGES := -swconfig ath10k-firmware-qca9887-ct
 	DEVICE_DTS_CONFIG := config@3
-	DEFAULT := n
 endef
 TARGET_DEVICES += meraki_mr74
 
@@ -1076,6 +1078,22 @@ endef
 # Missing DSA Setup
 #TARGET_DEVICES += teltonika_rutx10
 
+define Device/teltonika_rutx50
+	$(call Device/FitImage)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := Teltonika
+	DEVICE_MODEL := RUTX50
+	SOC := qcom-ipq4018
+	DEVICE_DTS_CONFIG := config@5
+	KERNEL_INSTALL := 1
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	FILESYSTEMS := squashfs
+	IMAGE/factory.ubi := append-ubi
+	DEVICE_PACKAGES := ipq-wifi-teltonika_rutx kmod-usb-net-qmi-wwan kmod-usb-serial-option uqmi
+endef
+TARGET_DEVICES += teltonika_rutx50
+
 define Device/tel_x1pro
 	$(call Device/FitImage)
 	DEVICE_VENDOR := Telco
@@ -1148,13 +1166,8 @@ define Device/zte_mf286d
 endef
 TARGET_DEVICES += zte_mf286d
 
-define Device/zte_mf287plus
+define Device/zte_mf287_common
 	$(call Device/zte_mf28x_common)
-	DEVICE_DTS_CONFIG := config@ap.dk01.1-c2
-	DEVICE_MODEL := MF287Plus
-	DEVICE_ALT0_VENDOR := ZTE
-	DEVICE_ALT0_MODEL := MF287
-	DEVICE_PACKAGES += ipq-wifi-zte_mf287plus
 	SOC := qcom-ipq4018
 #	The recovery image is used to return back to stock (an initramfs-based image
 #	that can be flashed to the device via sysupgrade
@@ -1162,9 +1175,32 @@ define Device/zte_mf287plus
 #	exploit for the web interface
 	IMAGES += factory.bin recovery.bin
 	IMAGE/factory.bin  := append-ubi
-	IMAGE/recovery.bin := append-squashfs4-fakeroot | sysupgrade-tar kernel=$$$$(BIN_DIR)/openwrt-$$(BOARD)$$(if $$(SUBTARGET),-$$(SUBTARGET))-$$(DEVICE_NAME)-initramfs-zImage.itb rootfs=$$$$@ | append-metadata
+	IMAGE/recovery.bin := append-squashfs4-fakeroot | sysupgrade-tar kernel=$$$$(BIN_DIR)/$$(KERNEL_INITRAMFS_IMAGE) rootfs=$$$$@ | append-metadata
+endef
+
+define Device/zte_mf287plus
+	$(call Device/zte_mf287_common)
+	DEVICE_PACKAGES += ipq-wifi-zte_mf287plus
+	DEVICE_DTS_CONFIG := config@ap.dk01.1-c2
+	DEVICE_MODEL := MF287Plus
 endef
 TARGET_DEVICES += zte_mf287plus
+
+define Device/zte_mf287
+	$(call Device/zte_mf287_common)
+	DEVICE_PACKAGES += ipq-wifi-zte_mf287
+	DEVICE_DTS_CONFIG := config@ap.dk01.1-c2
+	DEVICE_MODEL := MF287
+endef
+TARGET_DEVICES += zte_mf287
+
+define Device/zte_mf287pro
+	$(call Device/zte_mf287_common)
+	DEVICE_PACKAGES += ipq-wifi-zte_mf287plus
+	DEVICE_DTS_CONFIG := config@ap.dk04.1-c1
+	DEVICE_MODEL := MF287Pro
+endef
+TARGET_DEVICES += zte_mf287pro
 
 define Device/zte_mf289f
 	$(call Device/zte_mf28x_common)

@@ -323,12 +323,12 @@
 +&eth {
 +	status = "okay";
 +	mediatek,gmac-id = <0>;
-+	phy-mode = "sgmii";
++	phy-mode = "2500base-x";
 +	mediatek,switch = "mt7531";
 +	reset-gpios = <&gpio 54 GPIO_ACTIVE_HIGH>;
 +
 +	fixed-link {
-+		speed = <1000>;
++		speed = <2500>;
 +		full-duplex;
 +	};
 +};
@@ -344,7 +344,7 @@
 +};
 --- a/arch/arm/dts/Makefile
 +++ b/arch/arm/dts/Makefile
-@@ -1285,6 +1285,7 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
+@@ -1305,6 +1305,7 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
  	mt7622-rfb.dtb \
  	mt7623a-unielec-u7623-02-emmc.dtb \
  	mt7622-bananapi-bpi-r64.dtb \
@@ -362,10 +362,10 @@
 +bootcmd=if pstore check ; then run boot_recovery ; else run boot_ubi ; fi
 +bootconf=config-1
 +bootdelay=0
-+bootfile=openwrt-mediatek-mt7622-linksys_e8450-ubi-initramfs-recovery.itb
-+bootfile_bl2=openwrt-mediatek-mt7622-linksys_e8450-ubi-preloader.bin
-+bootfile_fip=openwrt-mediatek-mt7622-linksys_e8450-ubi-bl31-uboot.fip
-+bootfile_upg=openwrt-mediatek-mt7622-linksys_e8450-ubi-squashfs-sysupgrade.itb
++bootfile=immortalwrt-mediatek-mt7622-linksys_e8450-ubi-initramfs-recovery.itb
++bootfile_bl2=immortalwrt-mediatek-mt7622-linksys_e8450-ubi-preloader.bin
++bootfile_fip=immortalwrt-mediatek-mt7622-linksys_e8450-ubi-bl31-uboot.fip
++bootfile_upg=immortalwrt-mediatek-mt7622-linksys_e8450-ubi-squashfs-sysupgrade.itb
 +bootled_pwr=power:blue
 +bootled_rec=inet:orange on
 +bootmenu_confirm_return=askenv - Press ENTER to return to menu ; bootmenu 60

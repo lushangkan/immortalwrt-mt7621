@@ -1,20 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (C) 2021 Lean <coolsnowwolf@gmail.com>
-#
-# Copyright (C) 2021 ImmortalWrt
-# <https://immortalwrt.org>
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
-#
+# Copyright (C) 2021-2024 ImmortalWrt.org
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=default-settings
-PKG_VERSION:=1.1
-PKG_RELEASE:=26
+PKG_RELEASE:=29
 
-PKG_LICENSE:=GPL-3.0
+PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -43,10 +37,6 @@ endef
 define Package/default-settings-chn/install
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/99-default-settings-chinese $(1)/etc/uci-defaults/
-
-	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
-	po2lmo ./i18n/default.zh_Hans.po $(1)/usr/lib/lua/luci/i18n/default.zh-cn.lmo
-	po2lmo ./i18n/more.zh_Hans.po $(1)/usr/lib/lua/luci/i18n/more.zh-cn.lmo
 endef
 
 $(eval $(call BuildPackage,default-settings))

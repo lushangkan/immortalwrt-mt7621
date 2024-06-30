@@ -7,6 +7,7 @@ rockchip_setup_interfaces()
 	local board="$1"
 
 	case "$board" in
+	ariaboard,photonicat|\
 	ezpro,mrkaio-m68s|\
 	firefly,rk3568-roc-pc|\
 	friendlyarm,nanopi-r2c|\
@@ -28,7 +29,7 @@ rockchip_setup_interfaces()
 		ucidef_set_interfaces_lan_wan 'eth1 eth2' 'eth0'
 		;;
 	lunzn,fastrhino-r68s)
-		ucidef_set_interfaces_lan_wan 'eth0 eth1 eth3' 'eth2'
+		ucidef_set_interfaces_lan_wan 'eth0 eth1 eth2' 'eth3'
 		;;
 	*)
 		ucidef_set_interface_lan 'eth0'
@@ -52,9 +53,12 @@ rockchip_setup_macs()
 		wan_mac=$(macaddr_generate_from_mmc_cid mmcblk0)
 		lan_mac=$(macaddr_add "$wan_mac" 1)
 		;;
+	friendlyarm,nanopi-r5c)
+		wan_mac=$(macaddr_generate_from_mmc_cid mmcblk*)
+		lan_mac=$(macaddr_add "$wan_mac" 1)
+		;;
 	friendlyarm,nanopi-r2c-plus|\
 	friendlyarm,nanopi-r4s|\
-	friendlyarm,nanopi-r5c|\
 	friendlyarm,nanopi-r5s)
 		wan_mac=$(macaddr_generate_from_mmc_cid mmcblk1)
 		lan_mac=$(macaddr_add "$wan_mac" 1)

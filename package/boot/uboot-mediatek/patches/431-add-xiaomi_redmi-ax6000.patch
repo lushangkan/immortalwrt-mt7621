@@ -182,7 +182,7 @@
 +CONFIG_SERVERIP="192.168.1.254"
 --- /dev/null
 +++ b/arch/arm/dts/mt7986a-xiaomi_redmi-ax6000.dts
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,161 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (c) 2021 MediaTek Inc.
@@ -203,6 +203,11 @@
 +	chosen {
 +		stdout-path = &uart0;
 +		tick-timer = &timer0;
++	};
++
++	memory@40000000 {
++		device_type = "memory";
++		reg = <0x40000000 0x20000000>;
 +	};
 +
 +	keys {
@@ -234,12 +239,12 @@
 +&eth {
 +	status = "okay";
 +	mediatek,gmac-id = <0>;
-+	phy-mode = "sgmii";
++	phy-mode = "2500base-x";
 +	mediatek,switch = "mt7531";
 +	reset-gpios = <&gpio 5 GPIO_ACTIVE_HIGH>;
 +
 +	fixed-link {
-+		speed = <1000>;
++		speed = <2500>;
 +		full-duplex;
 +	};
 +};
@@ -351,10 +356,10 @@
 +bootcmd=if pstore check ; then run boot_recovery ; else run boot_ubi ; fi
 +bootconf=config-1
 +bootdelay=0
-+bootfile=openwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-ubootmod-initramfs-recovery.itb
-+bootfile_bl2=openwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-ubootmod-preloader.bin
-+bootfile_fip=openwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-ubootmod-bl31-uboot.fip
-+bootfile_upg=openwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-ubootmod-squashfs-sysupgrade.itb
++bootfile=immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-ubootmod-initramfs-recovery.itb
++bootfile_bl2=immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-ubootmod-preloader.bin
++bootfile_fip=immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-ubootmod-bl31-uboot.fip
++bootfile_upg=immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-ubootmod-squashfs-sysupgrade.itb
 +bootmenu_confirm_return=askenv - Press ENTER to return to menu ; bootmenu 60
 +bootmenu_default=0
 +bootmenu_delay=0

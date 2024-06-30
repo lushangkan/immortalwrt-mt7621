@@ -77,22 +77,22 @@ DEVICE_VARS += GRUB2_VARIANT UBOOT
 define Device/efi-default
   IMAGE/rootfs.img := append-rootfs | pad-to $(ROOTFS_PARTSIZE)
   IMAGE/rootfs.img.gz := append-rootfs | pad-to $(ROOTFS_PARTSIZE) | gzip
-  IMAGE/combined.img := grub-config efi | combined efi | grub-install efi | append-metadata
-  IMAGE/combined.img.gz := grub-config efi | combined efi | grub-install efi | gzip | append-metadata
-  IMAGE/combined.qcow2 := grub-config efi | combined efi | grub-install efi | qemu-image qcow2
-  IMAGE/combined.vmdk := grub-config efi | combined efi | grub-install efi | qemu-image vmdk
+  IMAGE/combined-efi.img := grub-config efi | combined efi | grub-install efi | append-metadata
+  IMAGE/combined-efi.img.gz := grub-config efi | combined efi | grub-install efi | gzip | append-metadata
+  IMAGE/combined-efi.qcow2 := grub-config efi | combined efi | grub-install efi | qemu-image qcow2
+  IMAGE/combined-efi.vmdk := grub-config efi | combined efi | grub-install efi | qemu-image vmdk
  ifeq ($(CONFIG_TARGET_IMAGES_GZIP),y)
     IMAGES-y := rootfs.img.gz
-    IMAGES-y += combined.img.gz
+    IMAGES-y += combined-efi.img.gz
   else
     IMAGES-y := rootfs.img
-    IMAGES-y += combined.img
+    IMAGES-y += combined-efi.img
   endif
   ifeq ($(CONFIG_QCOW2_IMAGES),y)
-    IMAGES-y += combined.qcow2
+    IMAGES-y += combined-efi.qcow2
   endif
   ifeq ($(CONFIG_VMDK_IMAGES),y)
-    IMAGES-y += combined.vmdk
+    IMAGES-y += combined-efi.vmdk
   endif
   KERNEL := kernel-bin
   KERNEL_INSTALL := 1
@@ -115,7 +115,8 @@ define Device/generic
 	kmod-mvneta kmod-mvpp2 kmod-fsl-dpaa1-net kmod-fsl-dpaa2-net \
 	kmod-fsl-enetc-net kmod-dwmac-imx kmod-fsl-fec kmod-thunderx-net \
 	kmod-dwmac-rockchip kmod-dwmac-sun8i kmod-phy-aquantia kmod-phy-broadcom \
-	kmod-phy-marvell kmod-phy-marvell-10g kmod-sfp kmod-atlantic
+	kmod-phy-marvell kmod-phy-marvell-10g kmod-sfp kmod-atlantic \
+	kmod-bcmgenet kmod-octeontx2-net
 endef
 TARGET_DEVICES += generic
 
